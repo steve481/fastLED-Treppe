@@ -26,7 +26,6 @@ long onewayTime = 42; //----------------------Intervall 2
 //Nicht verändern
 long xMillis = 0;
 long onewayMillis = 0;
-unsigned long currentMillis = millis();
 //LED Variablen
 int y = 0;
 int x = 0;
@@ -34,7 +33,7 @@ int xA = 0;
 int xB = 0;
 int gegenstrecke = kMatrixHeight-1;
 static uint8_t hue;
-
+unsigned long currentMillis = millis();
 
 //------------------------------------------------------
 
@@ -78,8 +77,8 @@ void loop()
   }
   //Wenn der Schalter in der mitte ist, spielt es die Animation mit der Debug funktion aus
   if ((digitalRead(buttonPin1) == HIGH) && (digitalRead(buttonPin2) == HIGH)) {
-    animation1();
     debug();
+    animation1();
   }
   //LEDs ausschalten, wenn der switch unten ist (Pinkontakt 2+3)
   if ((digitalRead(buttonPin1) == LOW) && (digitalRead(buttonPin2) == HIGH)) {
@@ -92,11 +91,15 @@ void loop()
 
 //-------------------------------Animationsfunktion ------------
 void animation1() {
+  unsigned long currentMillis = millis();
   if (currentMillis - xMillis > xTime) {
       xMillis = currentMillis;
       x++;
       xA = 5 - x;
       xB = 5 + x;
+      if (x < 0) {
+        x = 0;
+      }
       if (x > 5) {
         x = 0;
         y++;
@@ -105,12 +108,18 @@ void animation1() {
         if (y > kMatrixHeight-1) {
           y = 0;
         }
+        if (y < 0) {
+          y = 0;
+        }
       }
     }
     if (currentMillis - onewayMillis > onewayTime) {
       onewayMillis = currentMillis;
       gegenstrecke--;
       if (gegenstrecke < 0) {
+        gegenstrecke = kMatrixHeight-1;
+      }
+      if (gegenstrecke > kMatrixHeight-1) {
         gegenstrecke = kMatrixHeight-1;
       }
     }
@@ -126,7 +135,24 @@ void debug() {
   Serial.print("   ");
   Serial.print(x);
   Serial.print("   ");
-  Serial.println(gegenstrecke);
+  Serial.print(gegenstrecke);
+  Serial.print("   ");
+  if ((digitalRead(buttonPin1) == HIGH) && (digitalRead(buttonPin2) == LOW)) {
+    Serial.print("Oben ");
+  }
+  if ((digitalRead(buttonPin1) == HIGH) && (digitalRead(buttonPin2) == HIGH)) {
+    Serial.print("Mitte ");
+  }
+  if ((digitalRead(buttonPin1) == LOW) && (digitalRead(buttonPin2) == HIGH)) {
+    Serial.print("Unten ");
+  }
+  if (digitalRead(buttonPin3) == HIGH) {
+    Serial.print("Knopf 3");
+  }
+  if (digitalRead(buttonPin4) == LOW) {
+    Serial.print("Knopf 4");
+  }
+  Serial.println(" ");
 }
 //----------------------------------Power Off -------------
 void powerOff() {
