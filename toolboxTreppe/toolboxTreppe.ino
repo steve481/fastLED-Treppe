@@ -91,7 +91,7 @@ void loop()
 
 //-------------------------------Animationsfunktion ------------
 void animation1() {
-  unsigned long currentMillis = millis();
+  currentMillis = millis();
   if (currentMillis - xMillis > xTime) {
       xMillis = currentMillis;
       x++;
@@ -128,6 +128,9 @@ void animation1() {
     leds[ XY(xB, y)] = CHSV( hue,255,255);
     leds[ XY(5, gegenstrecke)] = CHSV( hue,255,255);
     FastLED.show();
+    if (hue > 255) {
+      hue = 0;
+    }
 }
 //----------------------------- Debug Funktion ----------------
 void debug() {
