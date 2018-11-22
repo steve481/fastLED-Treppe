@@ -71,7 +71,7 @@ void loop()
   //Wenn Schalter oben ist, starte Animation.
   if (digitalRead(buttonPin1) == HIGH) {
     //Wenn der Schalter in der mitte ist, aktiviere debugfunktion
-    if (digitalRead(buttonPin2) == HIGH)) {
+    if (digitalRead(buttonPin2) == HIGH) {
       debug();
     }
     animation1();
