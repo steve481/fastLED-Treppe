@@ -57,10 +57,7 @@ void setup() {
 }
 
 
-
-
-
-uint16_t XYsafe( uint8_t x, uint8_t y)
+uint16_t XYsafe( const uint8_t x, const uint8_t y)
 {
   if( x >= kMatrixWidth) return -1;
   if( y >= kMatrixHeight) return -1;
@@ -72,16 +69,15 @@ uint16_t XYsafe( uint8_t x, uint8_t y)
 void loop() 
 {
   //Wenn Schalter oben ist, starte Animation.
-  if ((digitalRead(buttonPin1) == HIGH) && (digitalRead(buttonPin2) == LOW)) {
+  if (digitalRead(buttonPin1) == HIGH) {
+    //Wenn der Schalter in der mitte ist, aktiviere debugfunktion
+    if (digitalRead(buttonPin2) == HIGH)) {
+      debug();
+    }
     animation1();
-  }
-  //Wenn der Schalter in der mitte ist, spielt es die Animation mit der Debug funktion aus
-  if ((digitalRead(buttonPin1) == HIGH) && (digitalRead(buttonPin2) == HIGH)) {
-    debug();
-    animation1();
-  }
+  } 
   //LEDs ausschalten, wenn der switch unten ist (Pinkontakt 2+3)
-  if ((digitalRead(buttonPin1) == LOW) && (digitalRead(buttonPin2) == HIGH)) {
+  else if ((digitalRead(buttonPin1) == LOW) && (digitalRead(buttonPin2) == HIGH)) {
     powerOff();
   }
 }
@@ -94,39 +90,32 @@ void animation1() {
   currentMillis = millis();
   if (currentMillis - xMillis > xTime) {
       xMillis = currentMillis;
-      x++;
+      ++x;
       xA = 5 - x;
       xB = 5 + x;
       if (x < 0) {
         x = 0;
-      }
-      if (x > 5) {
+      }else if (x > 5) {
         x = 0;
-        y++;
+        ++y;
         //hue++;
         fadeToBlackBy(leds, NUM_LEDS, 20);
-        if (y > kMatrixHeight-1) {
-          y = 0;
-        }
-        if (y < 0) {
+        if (y > kMatrixHeight-1 || y < 0) {
           y = 0;
         }
       }
     }
     if (currentMillis - onewayMillis > onewayTime) {
       onewayMillis = currentMillis;
-      gegenstrecke--;
-      if (gegenstrecke < 0) {
-        gegenstrecke = kMatrixHeight-1;
-      }
-      if (gegenstrecke > kMatrixHeight-1) {
+      --gegenstrecke;
+      if (gegenstrecke < 0 || gegenstrecke > kMatrixHeight-1) {
         gegenstrecke = kMatrixHeight-1;
       }
     }
     
-    leds[ XY(xA, y)] = CHSV( hue++,255,255);
-    leds[ XY(xB, y)] = CHSV( hue,255,255);
-    leds[ XY(5, gegenstrecke)] = CHSV( hue,255,255);
+    leds[ XY(xA, y)] = CHSV( hue++, 255, 255 );
+    leds[ XY(xB, y)] = CHSV( hue, 255, 255 );
+    leds[ XY(5, gegenstrecke)] = CHSV( hue, 255, 255 );
     FastLED.show();
     if (hue > 255) {
       hue = 0;
@@ -165,15 +154,12 @@ void powerOff() {
 
 //------------------------ Matrix definitionen ----------
 
-uint16_t XY( uint8_t x, uint8_t y)
-{
+uint16_t XY(const uint8_t x, const uint8_t y) {
   uint16_t i;
   
   if( kMatrixSerpentineLayout == false) {
     i = (y * kMatrixWidth) + x;
-  }
-
-  if( kMatrixSerpentineLayout == true) {
+  } else {
     if( y & 0x01) {
       // Odd rows run backwards
       uint8_t reverseX = (kMatrixWidth - 1) - x;
