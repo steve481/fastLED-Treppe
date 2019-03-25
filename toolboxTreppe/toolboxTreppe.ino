@@ -1,22 +1,23 @@
+#define FASTLED_ALLOW_INTERRUPTS 0
 #include <FastLED.h>
 #include <stdarg.h>
 
-#define LED_PIN  6
+#define LED_PIN D5
 
 #define COLOR_ORDER GRB
 #define CHIPSET WS2811
 
-#define BRIGHTNESS 255
+#define BRIGHTNESS 60
 
 // Breite und Höhe
 #define kMatrixWidth 11 //----------.Breite
 #define kMatrixHeight 17 //----------Höhe
 
 //Button Variablen
-#define buttonPin1 10//Switch Oben und Mitte 
-#define buttonPin2 11 //Switch unten und Mitte
-#define buttonPin3 9 //Rot unten
-#define buttonPin4 8 // Rot oben
+#define buttonPin1 D2 // Switch Oben und Mitte 
+#define buttonPin2 D4 // Switch unten und Mitte
+#define buttonPin3 D1 // Rot unten
+#define buttonPin4 D3 // Rot oben
 
 //Zeit Variablen
 #define xTime 10 //---------------------------Intervall 1
@@ -42,6 +43,7 @@ void setup() {
   pinMode(buttonPin2, INPUT_PULLUP);
   pinMode(buttonPin3, INPUT_PULLUP);
   pinMode(buttonPin4, INPUT_PULLUP);
+  pinMode(LED_PIN, OUTPUT);
   Serial.begin(9600);
   debugPrint("Hello World!");
 }
@@ -49,11 +51,13 @@ void setup() {
 //----------------------------------LOOP -------------------
 void loop() {
   //Wenn Schalter oben ist, starte Animation.
-  if (digitalRead(buttonPin1) == HIGH) {
+  if (digitalRead(buttonPin1) == LOW) {
+    Serial.println("Animation\n");
     animation();
   }
   //LEDs ausschalten, wenn der switch unten ist (Pinkontakt 2+3)
-  else if (digitalRead(buttonPin2) == HIGH) {
+  else {
+    Serial.println("OFF\n");
     powerOff();
   }
 }
