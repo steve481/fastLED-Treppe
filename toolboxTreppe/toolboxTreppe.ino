@@ -7,7 +7,7 @@
 #define COLOR_ORDER GRB
 #define CHIPSET WS2811
 
-#define BRIGHTNESS 60
+#define BRIGHTNESS 20
 
 // Breite und Höhe
 #define kMatrixWidth 11 //----------.Breite
