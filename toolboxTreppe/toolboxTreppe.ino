@@ -47,12 +47,11 @@ void setup() {
 }
 
 //----------------------------------LOOP -------------------
-void loop() 
-{ 
+void loop() {
   //Wenn Schalter oben ist, starte Animation.
   if (digitalRead(buttonPin1) == HIGH) {
     animation();
-  } 
+  }
   //LEDs ausschalten, wenn der switch unten ist (Pinkontakt 2+3)
   else if (digitalRead(buttonPin2) == HIGH) {
     powerOff();
@@ -68,9 +67,9 @@ void animation() {
   static uint8_t hue;
   static uint8_t y;
   static uint8_t x;
-  static uint8_t gegenstrecke = kMatrixHeight-1;
+  static uint8_t gegenstrecke = kMatrixHeight - 1;
   debugPrint("x: %d   y: %d   gegenstrecke: %d", x, y, gegenstrecke);
-  
+
   unsigned long currentMillis = millis();
   if (currentMillis - xMillis > xTime) {
     xMillis = currentMillis;
@@ -79,7 +78,7 @@ void animation() {
       x = 0;
       ++y;
       fadeToBlackBy(leds, NUM_LEDS, 20);
-      if (y > kMatrixHeight-1) {
+      if (y > kMatrixHeight - 1) {
         y = 0;
       }
     }
@@ -89,12 +88,12 @@ void animation() {
   if (currentMillis - onewayMillis > onewayTime) {
     onewayMillis = currentMillis;
     if (gegenstrecke == 0) {
-      gegenstrecke = kMatrixHeight-1;
+      gegenstrecke = kMatrixHeight - 1;
     } else {
       --gegenstrecke;
     }
   }
-    
+
   ++hue;
   leds[ XY(xA, y)] = CHSV( hue, 255, 255 );
   leds[ XY(xB, y)] = CHSV( hue, 255, 255 );
@@ -120,8 +119,8 @@ void powerOff() {
 //------------------------ Matrix definitionen ----------
 const uint16_t XY(const uint8_t& x, const uint8_t& y) {
   uint16_t returnValue = y * kMatrixWidth;
-  
-  if( kMatrixSerpentineLayout && y & 0x01) {
+
+  if ( kMatrixSerpentineLayout && y & 0x01) {
     // Odd rows run backwards
     returnValue += kMatrixWidth - 1 - x;
   } else {
@@ -130,4 +129,3 @@ const uint16_t XY(const uint8_t& x, const uint8_t& y) {
   }
   return returnValue;
 }
-
