@@ -1,69 +1,35 @@
-#define FASTLED_ALLOW_INTERRUPTS 0
-#include <FastLED.h>
-#include <stdarg.h>
+#include <NeoPixelBrightnessBus.h>
 
-#define LED_PIN D5
-
-#define COLOR_ORDER GRB
-#define CHIPSET WS2811
-
+#define MATRIX_WIDTH 11
+#define MATRIX_HEIGHT 17
+#define NUM_LEDS (MATRIX_WIDTH * MATRIX_HEIGHT)
 #define BRIGHTNESS 20
+#define LED_PIN D4
 
-// Breite und Höhe
-#define kMatrixWidth 11 //----------.Breite
-#define kMatrixHeight 17 //----------Höhe
+#define X_TIME 10
+#define ONE_WAY_TIME 42
 
-//Button Variablen
-#define buttonPin1 D2 // Switch Oben und Mitte 
-#define buttonPin2 D4 // Switch unten und Mitte
-#define buttonPin3 D1 // Rot unten
-#define buttonPin4 D3 // Rot oben
+NeoPixelBrightnessBus<NeoGrbFeature, NeoEsp8266Uart1800KbpsMethod> strip(NUM_LEDS, LED_PIN);
+NeoTopology <RowMajorAlternatingLayout> topo(MATRIX_WIDTH, MATRIX_HEIGHT);
 
-//Zeit Variablen
-#define xTime 10 //---------------------------Intervall 1
-#define onewayTime 42 //----------------------Intervall 2
+typedef void (*Animation)();
 
-//------------------------------------------------------
+// Available animations
+Animation animations[] = {&animation1};
 
-// Param for different pixel layouts
-#define kMatrixSerpentineLayout true
-#define NUM_LEDS (kMatrixWidth * kMatrixHeight)
-CRGB leds_plus_safety_pixel[ NUM_LEDS + 1];
-CRGB* const leds( leds_plus_safety_pixel + 1);
-
-void animation();
-void debugPrint(const char* output, ...);
-const uint16_t XY(const uint8_t& x, const uint8_t& y);
-
-//--------------------------------SETUP ------------------------
 void setup() {
-  FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
-  FastLED.setBrightness( BRIGHTNESS );
-  pinMode(buttonPin1, INPUT_PULLUP);
-  pinMode(buttonPin2, INPUT_PULLUP);
-  pinMode(buttonPin3, INPUT_PULLUP);
-  pinMode(buttonPin4, INPUT_PULLUP);
-  pinMode(LED_PIN, OUTPUT);
   Serial.begin(9600);
-  debugPrint("Hello World!");
+  strip.Begin();
+  strip.SetBrightness(BRIGHTNESS);
+  strip.Show();
 }
 
-//----------------------------------LOOP -------------------
 void loop() {
-  //Wenn Schalter oben ist, starte Animation.
-  if (digitalRead(buttonPin1) == LOW) {
-    Serial.println("Animation\n");
-    animation();
-  }
-  //LEDs ausschalten, wenn der switch unten ist (Pinkontakt 2+3)
-  else {
-    Serial.println("OFF\n");
-    powerOff();
-  }
+  Serial.println("Loop");
+  (*animations[0])();
 }
 
-//-------------------------------Animationsfunktion ------------
-void animation() {
+void animation1() {
   static uint8_t xA;
   static uint8_t xB;
   static unsigned long xMillis;
@@ -71,65 +37,39 @@ void animation() {
   static uint8_t hue;
   static uint8_t y;
   static uint8_t x;
-  static uint8_t gegenstrecke = kMatrixHeight - 1;
-  debugPrint("x: %d   y: %d   gegenstrecke: %d", x, y, gegenstrecke);
+  static uint8_t gegenstrecke = MATRIX_HEIGHT - 1;
 
   unsigned long currentMillis = millis();
-  if (currentMillis - xMillis > xTime) {
+  if (currentMillis - xMillis > X_TIME) {
     xMillis = currentMillis;
     ++x;
     if (x > 5) {
       x = 0;
       ++y;
-      fadeToBlackBy(leds, NUM_LEDS, 20);
-      if (y > kMatrixHeight - 1) {
+      //fadeToBlackBy(leds, NUM_LEDS, 20);
+      for (uint16_t i = 0; i < NUM_LEDS; i++) {
+        HsbColor c = strip.GetPixelColor(i);
+        strip.SetPixelColor(i, HsbColor(c.H, c.S, c.B - c.B * (20.0 / 256.0)));
+      }
+      if (y > MATRIX_HEIGHT - 1) {
         y = 0;
       }
     }
     xA = 5 - x;
     xB = 5 + x;
   }
-  if (currentMillis - onewayMillis > onewayTime) {
+  if (currentMillis - onewayMillis > ONE_WAY_TIME) {
     onewayMillis = currentMillis;
     if (gegenstrecke == 0) {
-      gegenstrecke = kMatrixHeight - 1;
+      gegenstrecke = MATRIX_HEIGHT - 1;
     } else {
       --gegenstrecke;
     }
   }
 
   ++hue;
-  leds[ XY(xA, y)] = CHSV( hue, 255, 255 );
-  leds[ XY(xB, y)] = CHSV( hue, 255, 255 );
-  leds[ XY(5, gegenstrecke)] = CHSV( hue, 255, 255 );
-  FastLED.show();
-}
-//----------------------------- Debug Funktion ----------------
-
-void debugPrint(const char* output, ...) {
-  va_list args;
-  char buffer[1024];
-  if (digitalRead(buttonPin1) && digitalRead(buttonPin2) && (sprintf (buffer, output, args) >= 0) ) {
-    Serial.println(buffer);
-  }
-}
-
-//----------------------------------Power Off -------------
-void powerOff() {
-  FastLED.clear();
-  FastLED.show();
-}
-
-//------------------------ Matrix definitionen ----------
-const uint16_t XY(const uint8_t& x, const uint8_t& y) {
-  uint16_t returnValue = y * kMatrixWidth;
-
-  if ( kMatrixSerpentineLayout && y & 0x01) {
-    // Odd rows run backwards
-    returnValue += kMatrixWidth - 1 - x;
-  } else {
-    // Even rows run forwards
-    returnValue += x;
-  }
-  return returnValue;
+  strip.SetPixelColor(topo.Map(xA, y), HsbColor(hue / 256.0, 1.0, 1.0) );
+  strip.SetPixelColor(topo.Map(xB, y), HsbColor(hue / 256.0, 1.0, 1.0) );
+  strip.SetPixelColor(topo.Map(5, gegenstrecke), HsbColor(hue / 256, 1.0, 1.0) );
+  strip.Show();
 }
