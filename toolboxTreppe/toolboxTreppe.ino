@@ -89,6 +89,7 @@ void loop() {
 
   if (!digitalRead(BUTTON_TOP_PIN)) {
     currentAnimation = ++currentAnimation % sizeof(animations);
+    currentAnimation = ++currentAnimation > sizeof(animations) / sizeof(Animation) - 1 ? sizeof(animations) / sizeof(Animation) - 1 : currentAnimation;
     while (!digitalRead(BUTTON_TOP_PIN)) {
       delay(10);
     }
@@ -96,6 +97,7 @@ void loop() {
 
   if (!digitalRead(BUTTON_BOT_PIN)) {
     currentAnimation = --currentAnimation > 0 ? currentAnimation : 0;
+    currentAnimation = --currentAnimation < 0 ? 0 : currentAnimation;
     while (!digitalRead(BUTTON_BOT_PIN)) {
       delay(10);
     }
