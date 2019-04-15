@@ -8,7 +8,7 @@
 #define MATRIX_WIDTH 11
 #define MATRIX_HEIGHT 17
 #define NUM_LEDS (MATRIX_WIDTH * MATRIX_HEIGHT)
-#define BRIGHTNESS 50
+#define BRIGHTNESS 30
 #define LED_PIN D4
 #define SWITCH_PIN D1
 #define BUTTON_TOP_PIN D2
@@ -17,16 +17,34 @@
 #define X_TIME 10
 #define ONE_WAY_TIME 42
 
-NeoPixelBrightnessBus<NeoGrbFeature, NeoEsp8266Uart1800KbpsMethod> strip(NUM_LEDS, LED_PIN);
+NeoPixelBrightnessBus<NeoBrgFeature, NeoEsp8266Uart1800KbpsMethod> strip(NUM_LEDS, LED_PIN);
 NeoTopology <RowMajorAlternatingLayout> topo(MATRIX_WIDTH, MATRIX_HEIGHT);
 
-typedef void (*Animation)();
+WiFiServer wifiServer(5000);
+
+// switchOn stores the last switch state, ledsOn the actual state.
+// Opening/Closing via SpaceAPI overwrites the state until switch is toggled again.
+bool switchOn;
+bool ledsOn;
+
+// Calculate animation by progress [0.1, 1.0)
+typedef void (*AnimationFunction)(float);
+
+typedef struct Animation {
+  AnimationFunction callback;
+  uint16_t durationMillis;
+} Animation;
 
 // Available animations
-Animation animations[] = {&animation1, &progressAnimation};
+Animation animations[] = { Animation{&colorChangeAnimation, 2000}, Animation{ &animation1, 2000}};
 int currentAnimation = 0;
 
+unsigned long currentAnimationStart = millis();
+
 void setup() {
+  Serial.begin(9600);
+  Serial.println("ToolboxTreppe: https://github.com/ToolboxBodensee/fastLED-Treppe");
+
   pinMode(SWITCH_PIN, INPUT_PULLUP);
   pinMode(BUTTON_TOP_PIN, INPUT_PULLUP);
   pinMode(BUTTON_BOT_PIN, INPUT_PULLUP);
@@ -35,13 +53,17 @@ void setup() {
   strip.SetBrightness(BRIGHTNESS);
   strip.Show();
 
+  Serial.println("WiFi connecting");
   WiFi.mode(WIFI_STA);
   WiFi.begin(STASSID, STAPSK);
-
-
   while (WiFi.status() != WL_CONNECTED) {
     progressAnimation();
   }
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
+
+  wifiServer.begin();
 
   ArduinoOTA.setHostname("treppeLed");
 
@@ -77,36 +99,100 @@ void setup() {
     }
   });
   ArduinoOTA.begin();
+  Serial.println("ArduinoOTA initialized");
 }
 
 void loop() {
-  if (digitalRead(SWITCH_PIN)) {
-    (*animations[currentAnimation])();
+  if (switchOn != digitalRead(SWITCH_PIN)) {
+    switchOn = digitalRead(SWITCH_PIN);
+    ledsOn = switchOn;
+  }
+  if (ledsOn) {
+    if ((millis() - currentAnimationStart) >= animations[currentAnimation].durationMillis) currentAnimationStart = millis();
+    float progress = (float) (millis() - currentAnimationStart) / animations[currentAnimation].durationMillis;
+
+    animations[currentAnimation].callback(progress);
+
   } else {
     strip.ClearTo(RgbColor(0));
-    strip.Show();
+    currentAnimationStart = millis();
   }
+  strip.Show();
 
   if (!digitalRead(BUTTON_TOP_PIN)) {
-    currentAnimation = ++currentAnimation % sizeof(animations);
+    Serial.println("+1");
     currentAnimation = ++currentAnimation > sizeof(animations) / sizeof(Animation) - 1 ? sizeof(animations) / sizeof(Animation) - 1 : currentAnimation;
+    Serial.println(currentAnimation);
     while (!digitalRead(BUTTON_TOP_PIN)) {
       delay(10);
     }
   }
 
   if (!digitalRead(BUTTON_BOT_PIN)) {
-    currentAnimation = --currentAnimation > 0 ? currentAnimation : 0;
+    Serial.println("-1");
+
     currentAnimation = --currentAnimation < 0 ? 0 : currentAnimation;
+    Serial.println(currentAnimation);
+
     while (!digitalRead(BUTTON_BOT_PIN)) {
       delay(10);
+    }
+  }
+
+  WiFiClient client = wifiServer.available();
+  if (client) {
+    Serial.println("TCP client connected");
+    char receiveBuffer[24];
+    int i = 0;
+    while (client.connected()) {
+      while (client.available() > 0 && i < sizeof(receiveBuffer)) {
+        receiveBuffer[i] = client.read();
+        Serial.print("Received Byte: 0x");
+        Serial.println(receiveBuffer[i], HEX);
+        i++;
+      }
+      client.stop();
+
+      if (stringHasPrefix(receiveBuffer, "open")) {
+        Serial.println("SpaceAPI notify, turning LEDs on");
+        ledsOn = true;
+      } else if (stringHasPrefix(receiveBuffer, "closed")) {
+        Serial.println("SpaceAPI notify, turning LEDs off");
+        ledsOn = false;
+      }
     }
   }
 
   ArduinoOTA.handle();
 }
 
-void animation1() {
+void colorChangeAnimation(float progress) {
+  static int steps = 10;
+  static HslColor currentColor = HslColor(0, 1, 0.5);
+  static HslColor nextColor = HslColor(1.0 / steps, 1, 0.5);
+  static float prevProgress = 0;
+
+
+
+  // Detect progress overflow
+  if (progress < prevProgress) {
+
+    currentColor = nextColor;
+    float nextH = (nextColor.H + (1.0 / steps));
+    if (nextH > 1) {
+      nextH--;
+    }
+    nextColor.H = nextH;
+  }
+  prevProgress = progress;
+
+  float p = NeoEase::ExponentialInOut(progress);
+
+  RgbColor color = RgbColor::LinearBlend(currentColor, nextColor, p);
+  strip.ClearTo(color);
+}
+
+void animation1(float progress) {
   static uint8_t xA;
   static uint8_t xB;
   static unsigned long xMillis;
@@ -192,4 +278,14 @@ void progressAnimation() {
   strip.ClearTo(RgbColor(0));
   strip.SetPixelColor(topo.Map(x, y), RgbColor(255, 255, 255));
   strip.Show();
+}
+
+bool stringHasPrefix(char *s, char* prefix) {
+  while (*prefix != 0) {
+    if (*s == 0 || *s != *prefix) {
+      return false;
+    }
+    s++;
+    prefix++;
+  }
 }
